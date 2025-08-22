@@ -28,11 +28,9 @@ A comprehensive, real-time Python dashboard for monitoring IT infrastructure sec
 - **Escalation Rules**: Configurable alert escalation policies
 - **Notification Channels**: Dashboard, logs, email, and SMS support
 
-### 🌐 **Modern Web Interface**
+### 🌐 **Web Interface**
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 - **Real-time Updates**: WebSocket-based live data streaming
-- **Interactive Navigation**: Tabbed interface for different security aspects
-- **Modern UI/UX**: Bootstrap 5 with custom styling and animations
 
 ## 🛠️ Installation
 
@@ -40,31 +38,7 @@ A comprehensive, real-time Python dashboard for monitoring IT infrastructure sec
 - Python 3.8 or higher
 - Windows 10/11 (tested on Windows 10.0.26100)
 - Administrator privileges (for system monitoring)
-
-### Step 1: Clone or Download
-```bash
-# If using git
-git clone <repository-url>
-cd Cyber_Dashboard
-
-# Or download and extract the ZIP file
-```
-
-### Step 2: Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### Step 3: Run the Dashboard
-```bash
-python app.py
-```
-
-### Step 4: Access Dashboard
-Open your web browser and navigate to:
-```
-http://localhost:5000
-```
+- 
 
 ## 📁 Project Structure
 
@@ -281,22 +255,10 @@ self.alert_rules = {
 - IoT device security
 - Container security monitoring
 
-## 📝 License
-
-This project is developed for educational and professional use. Please ensure compliance with your organization's security policies and local regulations.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
-
 ## 📞 Support
 
 For support or questions:
-1. Check the troubleshooting section
-2. Review console error messages
-3. Verify system requirements
-4. Check Windows event logs
-
+Email me at dakshkarki47@gmail.com
 ---
 
 **⚠️ Security Notice**: This dashboard provides security monitoring capabilities. Ensure proper access controls and network security measures are in place before deployment in production environments.
