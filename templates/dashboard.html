@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DKASH  SECURITY DASHBOARD</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #ffffff;
+            --secondary-color: #b0b0b0;
+            --accent-color: #00d4ff;
+            --success-color: #00ff88;
+            --warning-color: #ffb800;
+            --danger-color: #ff4757;
+            --info-color: #00d4ff;
+            --light-color: #2a2a2a;
+            --dark-color: #1a1a1a;
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #2a2a2a;
+            --bg-elevated: #333333;
+            --border-color: #404040;
+            --text-muted: #888888;
+        }
+        
+        body {
+            background: var(--bg-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            color: var(--primary-color);
+        }
+        
+        .dashboard-container {
+            padding: 16px;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .section {
+            margin-bottom: 24px;
+        }
+        
+        .section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .row {
+            margin-bottom: 16px;
+        }
+        
+        .row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .header {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.75rem;
+        }
+        
+        .header .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        /* Enhanced animations for dark theme */
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px var(--accent-color); }
+            50% { box-shadow: 0 0 20px var(--accent-color), 0 0 30px var(--accent-color); }
+        }
+        
+        .metric-card:hover {
+            animation: glow 2s ease-in-out infinite;
+        }
+        
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .metric-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .alert-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            border-color: var(--accent-color);
+        }
+        
+        .chart-container:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border-color: var(--accent-color);
+        }
+        
+        .metric-card h3 {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+        
+        .metric-label {
+            color: var(--secondary-color);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .alert-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .alert-card.critical { border-left-color: var(--danger-color); }
+        .alert-card.high { border-left-color: var(--warning-color); }
+        .alert-card.medium { border-left-color: var(--info-color); }
+        .alert-card.low { border-left-color: var(--success-color); }
+        
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-container h3 {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            height: 300px;
+            position: relative;
+        }
+        
+        /* Add scrollbars for content that might overflow */
+        .scrollable-content {
+            max-height: 280px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Custom scrollbar styling */
+        .scrollable-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollable-content::-webkit-scrollbar-track {
+            background: var(--bg-elevated);
+            border-radius: 3px;
+        }
+        
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        
+        .scrollable-content::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+        
+        /* Enhanced threat section styling */
+        .threat-section {
+            height: 500px;
+        }
+        
+        .threat-tab-content {
+            max-height: 350px;
+        }
+        
+        .threat-details {
+            background: var(--bg-elevated);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .threat-details code {
+            background: var(--bg-card);
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            border: 1px solid var(--border-color);
+            color: var(--primary-color);
+        }
+        
+        .threat-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .threat-info-item {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+        }
+        
+        .threat-info-item strong {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .threat-details.mt-2 {
+            margin-bottom: 8px;
+        }
+        
+        .threat-card-content {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .threat-main-content {
+            flex: 1;
+        }
+        
+        .threat-sidebar {
+            flex-shrink: 0;
+            width: 200px;
+        }
+        
+        .threat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .threat-title {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            flex: 1;
+            margin-right: 12px;
+        }
+        
+        .threat-badges {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        
+        .alert-card.mb-3 {
+            margin-bottom: 16px !important;
+        }
+        
+        .alert-card .threat-card-content {
+            margin: 0;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .threat-card-content {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .threat-sidebar {
+                width: 100%;
+            }
+            
+            .threat-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .threat-badges {
+                align-self: flex-start;
+            }
+            
+            .dashboard-container {
+                padding: 12px;
+            }
+            
+            .metric-card {
+                padding: 16px;
+            }
+            
+            .chart-container {
+                padding: 16px;
+            }
+        }
+        
+        .threat-status-indicator {
+            text-align: center;
+            padding: 15px;
+        }
+        
+        .threat-status-indicator i {
+            margin-bottom: 8px;
+        }
+        
+        /* Better spacing for threat cards */
+        .alert-card.mb-3 {
+            margin-bottom: 20px !important;
+            padding: 20px;
+        }
+        
+        .alert-card .row {
+            align-items: flex-start;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        
+        .status-healthy { background-color: var(--success-color); color: white; }
+        .status-warning { background-color: var(--warning-color); color: white; }
+        .status-critical { background-color: var(--danger-color); color: white; }
+        
+        .status-badge.status-low { background-color: var(--success-color); color: var(--bg-primary); }
+        .status-badge.status-medium { background-color: var(--warning-color); color: var(--bg-primary); }
+        .status-badge.status-high { background-color: var(--danger-color); color: var(--bg-primary); }
+        .status-badge.status-critical { background-color: var(--danger-color); color: var(--bg-primary); }
+        
+        .real-time-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            margin-right: 6px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.4; }
+        }
+        
+        .navbar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .nav-link {
+            color: var(--primary-color);
+            font-weight: 500;
+            border-radius: 10px;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background-color: var(--accent-color);
+            color: var(--bg-primary);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .metric-card, .chart-container, .alert-card {
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link {
+            transition: all 0.2s ease;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+        
+        .threat-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .threat-status-display {
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+        }
+        
+        .threat-status-display i {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+        
+        .threat-status-display small {
+            font-size: 0.75rem;
+            color: var(--secondary-color);
+        }
+        
+        .toast {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            background: var(--bg-card);
+        }
+        
+        .toast-header {
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 500;
+        }
+        
+        .toast-body {
+            padding: 12px 16px;
+            color: var(--primary-color);
+        }
+        
+        .btn-outline-secondary {
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: var(--bg-primary);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .text-primary { color: var(--accent-color) !important; }
+        .text-success { color: var(--success-color) !important; }
+        .text-warning { color: var(--warning-color) !important; }
+        .text-danger { color: var(--danger-color) !important; }
+        .text-info { color: var(--info-color) !important; }
+        
+        .bg-success { background-color: var(--success-color) !important; }
+        .bg-warning { background-color: var(--warning-color) !important; }
+        .bg-danger { background-color: var(--danger-color) !important; }
+        .bg-info { background-color: var(--info-color) !important; }
+        .bg-secondary { background-color: var(--secondary-color) !important; }
+        
+        /* Dark theme badge text colors */
+        .bg-success, .bg-warning, .bg-danger, .bg-info, .bg-secondary {
+            color: var(--bg-primary) !important;
+        }
+        
+        /* Dark theme specific enhancements */
+        .metric-card, .chart-container, .alert-card, .header, .navbar {
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Chart background styling for dark theme */
+        canvas {
+            background: transparent;
+        }
+        
+        /* Enhanced contrast for dark theme */
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+        
+        /* Enhanced shadows for dark theme */
+        .metric-card:hover, .chart-container:hover, .alert-card:hover {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Glow effects for accent elements */
+        .metric-card i {
+            text-shadow: 0 0 10px var(--accent-color);
+        }
+        
+        .status-indicator, .real-time-indicator {
+            box-shadow: 0 0 10px var(--success-color);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-muted);
+        }
+        
+        .loading p {
+            margin: 0;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        
+        .threat-summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        
+        .threat-summary-card .metric-value {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+        
+        .threat-summary-card .metric-label {
+            font-size: 0.8rem;
+            margin-bottom: 0;
+        }
+        
+        .form-control, .form-select {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: var(--primary-color);
+        }
+        
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
+            background: var(--bg-elevated);
+        }
+        
+        .btn:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
+        }
+        
+        .nav-link:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
+        }
+        
+        /* Enhanced focus states for dark theme */
+        *:focus {
+            outline: none;
+        }
+        
+        .btn:focus, .nav-link:focus, .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.3);
+        }
+        
+        .input-group-text {
+            background-color: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--secondary-color);
+        }
+        
+        .search-filter-bar {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-color);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .table {
+            font-size: 0.875rem;
+        }
+        
+        .table th {
+            border-top: none;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .table td {
+            border-top: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: var(--bg-elevated);
+        }
+        
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .metric-card i {
+            color: var(--accent-color);
+            opacity: 0.8;
+        }
+        
+        .metric-card:hover i {
+            opacity: 1;
+        }
+        
+        .nav-tabs {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--secondary-color);
+            font-weight: 500;
+            padding: 0.75rem 1rem;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border-color: transparent;
+            color: var(--primary-color);
+            background-color: transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            border-color: transparent;
+            border-bottom-color: var(--accent-color);
+            color: var(--accent-color);
+            background-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1><i class="fas fa-shield-alt me-3"></i>DKASH Security Dashboard</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-flex align-items-center justify-content-end">
+                        <span class="status-indicator"></span>
+                        <span class="me-3">System Status: <strong id="system-status">Monitoring</strong></span>
+                        <span class="real-time-indicator"></span>
+                        <span>Real-time Updates</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#overview" onclick="showSection('overview')">
+                            <i class="fas fa-tachometer-alt me-2"></i>Overview
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#threats" onclick="showSection('threats')">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Threats
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#system" onclick="showSection('system')">
+                            <i class="fas fa-server me-2"></i>System
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#network" onclick="showSection('network')">
+                            <i class="fas fa-network-wired me-2"></i>Network
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#logs" onclick="showSection('logs')">
+                            <i class="fas fa-file-alt me-2"></i>Logs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Overview Section -->
+        <div id="overview-section" class="section">
+            <!-- Key Metrics Row -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <i class="fas fa-shield-alt fa-2x text-primary mb-3"></i>
+                        <div class="metric-value" id="health-score">--</div>
+                        <div class="metric-label">System Health Score</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                        <div class="metric-value" id="active-threats">--</div>
+                        <div class="metric-label">Active Threats</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <i class="fas fa-server fa-2x text-info mb-3"></i>
+                        <div class="metric-value" id="cpu-usage">--</div>
+                        <div class="metric-label">CPU Usage</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <i class="fas fa-memory fa-2x text-success mb-3"></i>
+                        <div class="metric-value" id="memory-usage">--</div>
+                        <div class="metric-label">Memory Usage</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-line me-2"></i>System Performance Trends</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="performanceChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-pie me-2"></i>Threat Distribution</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="threatChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Alerts -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-bell me-2"></i>Recent Security Alerts</h3>
+                        <div id="recent-alerts" class="scrollable-content">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading alerts...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Threats Section -->
+        <div id="threats-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container threat-section">
+                        <h3><i class="fas fa-exclamation-triangle me-2"></i>Threat Detection History</h3>
+                        
+                        <!-- Threat Summary Cards -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <div class="threat-summary-card">
+                                    <div class="metric-value text-danger" id="total-threats">--</div>
+                                    <div class="metric-label">Total Threats</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="threat-summary-card">
+                                    <div class="metric-value text-warning" id="active-threats-count">--</div>
+                                    <div class="metric-label">Active Threats</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="threat-summary-card">
+                                    <div class="metric-value text-success" id="resolved-threats">--</div>
+                                    <div class="metric-label">Resolved</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="threat-summary-card">
+                                    <div class="metric-value text-info" id="escalated-threats">--</div>
+                                    <div class="metric-label">Escalated</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Threat Filter Tabs -->
+                        <ul class="nav nav-tabs mb-3" id="threatTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="all-threats-tab" data-bs-toggle="tab" data-bs-target="#all-threats" type="button" role="tab">
+                                    <i class="fas fa-list me-2"></i>All Threats
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="active-threats-tab" data-bs-toggle="tab" data-bs-target="#active-threats" type="button" role="tab">
+                                    <i class="fas fa-exclamation-circle me-2"></i>Active
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="resolved-threats-tab" data-bs-toggle="tab" data-bs-target="#resolved-threats" type="button" role="tab">
+                                    <i class="fas fa-check-circle me-2"></i>Resolved
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <!-- Search and Filter Bar -->
+                        <div class="search-filter-bar">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" class="form-control" id="threatSearch" placeholder="Search threats...">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="severityFilter">
+                                        <option value="">All Severities</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="typeFilter">
+                                        <option value="">All Types</option>
+                                        <option value="brute_force">Brute Force</option>
+                                        <option value="resource_abuse">Resource Abuse</option>
+                                        <option value="network_anomaly">Network Anomaly</option>
+                                        <option value="suspicious_process">Suspicious Process</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tab Content with Bigger Scrolling Area -->
+                        <div class="tab-content" id="threatTabContent">
+                            <!-- All Threats Tab -->
+                            <div class="tab-pane fade show active" id="all-threats" role="tabpanel">
+                                <div id="all-threats-list" class="scrollable-content threat-tab-content">
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                        <p>Loading threat history...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Active Threats Tab -->
+                            <div class="tab-pane fade" id="active-threats" role="tabpanel">
+                                <div id="active-threats-list" class="scrollable-content threat-tab-content">
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                        <p>Loading active threats...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Resolved Threats Tab -->
+                            <div class="tab-pane fade" id="resolved-threats" role="tabpanel">
+                                <div id="resolved-threats-list" class="scrollable-content threat-tab-content">
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                        <p>Loading resolved threats...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Section -->
+        <div id="system-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-microchip me-2"></i>CPU & Memory Usage</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="systemChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-hdd me-2"></i>Disk Usage</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="diskChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-list me-2"></i>Top Processes</h3>
+                        <div id="processes-list" class="scrollable-content">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading processes...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Section -->
+        <div id="network-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-bar me-2"></i>Network Traffic</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="networkChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-plug me-2"></i>Network Connections</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="connectionsChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-network-wired me-2"></i>Network Interfaces</h3>
+                        <div id="interfaces-list" class="scrollable-content">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading network interfaces...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div id="logs-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-file-alt me-2"></i>Security Event Logs</h3>
+                        <div id="logs-list" class="scrollable-content">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading logs...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables
+        let socket;
+        let charts = {};
+        let currentData = {};
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSocket();
+            initializeCharts();
+            loadInitialData();
+            setInterval(updateTime, 1000);
+            
+            // Initialize threat search and filters
+            initializeThreatFilters();
+        });
+        
+        // Socket.IO initialization
+        function initializeSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                console.log('Connected to dashboard');
+                document.getElementById('system-status').textContent = 'Connected';
+            });
+            
+            socket.on('disconnect', function() {
+                console.log('Disconnected from dashboard');
+                document.getElementById('system-status').textContent = 'Disconnected';
+            });
+            
+            socket.on('metrics_update', function(data) {
+                updateDashboard(data);
+            });
+            
+            socket.on('threat_alert', function(alert) {
+                showNewAlert(alert);
+            });
+        }
+        
+        // Initialize charts
+        function initializeCharts() {
+            // Performance Chart
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            charts.performance = new Chart(performanceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU Usage (%)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Memory Usage (%)',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+            
+            // Threat Distribution Chart
+            const threatCtx = document.getElementById('threatChart').getContext('2d');
+            charts.threat = new Chart(threatCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Low', 'Medium', 'High', 'Critical'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+            
+            // System Chart
+            const systemCtx = document.getElementById('systemChart').getContext('2d');
+            charts.system = new Chart(systemCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['CPU', 'Memory', 'Disk'],
+                    datasets: [{
+                        label: 'Usage (%)',
+                        data: [0, 0, 0],
+                        backgroundColor: ['#3498db', '#e74c3c', '#f39c12']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+            
+            // Network Chart
+            const networkCtx = document.getElementById('networkChart').getContext('2d');
+            charts.network = new Chart(networkCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Connections',
+                        data: [],
+                        borderColor: '#9b59b6',
+                        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+            
+            // Connections Chart
+            const connectionsCtx = document.getElementById('connectionsChart').getContext('2d');
+            charts.connections = new Chart(connectionsCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Established', 'Listening', 'Time Wait', 'Other'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#95a5a6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+            
+            // Disk Chart
+            const diskCtx = document.getElementById('diskChart').getContext('2d');
+            charts.disk = new Chart(diskCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used', 'Free'],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#e74c3c', '#27ae60']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Load initial data
+        function loadInitialData() {
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    currentData = data;
+                    updateDashboard(data);
+                })
+                .catch(error => {
+                    console.error('Error loading initial data:', error);
+                });
+        }
+        
+        // Update dashboard with new data
+        function updateDashboard(data) {
+            currentData = data;
+            
+            // Update key metrics
+            if (data.system_metrics && data.system_metrics.length > 0) {
+                const latest = data.system_metrics[data.system_metrics.length - 1];
+                updateMetric('health-score', latest.health_score || '--');
+                updateMetric('cpu-usage', latest.cpu?.usage_percent?.toFixed(1) + '%' || '--');
+                updateMetric('memory-usage', latest.memory?.usage_percent?.toFixed(1) + '%' || '--');
+            }
+            
+            if (data.threat_alerts) {
+                updateMetric('active-threats', data.threat_alerts.length);
+            }
+            
+            // Update charts
+            updatePerformanceChart(data);
+            updateThreatChart(data);
+            updateSystemChart(data);
+            updateNetworkChart(data);
+            updateConnectionsChart(data);
+            updateDiskChart(data);
+            
+            // Update lists
+            updateAlertsList(data);
+            updateProcessesList(data);
+            updateInterfacesList(data);
+            updateLogsList(data);
+            updateThreatsList(data); // This now handles the threats section
+        }
+        
+        // Update individual metric
+        function updateMetric(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+        
+        // Update performance chart
+        function updatePerformanceChart(data) {
+            if (!data.system_metrics || data.system_metrics.length === 0) return;
+            
+            const labels = data.system_metrics.slice(-20).map(m => {
+                const time = new Date(m.timestamp);
+                return time.toLocaleTimeString();
+            });
+            
+            const cpuData = data.system_metrics.slice(-20).map(m => m.cpu?.usage_percent || 0);
+            const memoryData = data.system_metrics.slice(-20).map(m => m.memory?.usage_percent || 0);
+            
+            charts.performance.data.labels = labels;
+            charts.performance.data.datasets[0].data = cpuData;
+            charts.performance.data.datasets[1].data = memoryData;
+            charts.performance.update();
+        }
+        
+        // Update threat chart
+        function updateThreatChart(data) {
+            if (!data.threat_alerts) return;
+            
+            const severityCounts = { low: 0, medium: 0, high: 0, critical: 0 };
+            data.threat_alerts.forEach(alert => {
+                const severity = alert.severity || 'medium';
+                severityCounts[severity]++;
+            });
+            
+            charts.threat.data.datasets[0].data = [
+                severityCounts.low,
+                severityCounts.medium,
+                severityCounts.high,
+                severityCounts.critical
+            ];
+            charts.threat.update();
+        }
+        
+        // Update system chart
+        function updateSystemChart(data) {
+            if (!data.system_metrics || data.system_metrics.length === 0) return;
+            
+            const latest = data.system_metrics[data.system_metrics.length - 1];
+            charts.system.data.datasets[0].data = [
+                latest.cpu?.usage_percent || 0,
+                latest.memory?.usage_percent || 0,
+                latest.disk?.usage_percent || 0
+            ];
+            charts.system.update();
+        }
+        
+        // Update network chart
+        function updateNetworkChart(data) {
+            if (!data.network_traffic || data.network_traffic.length === 0) return;
+            
+            const labels = data.network_traffic.slice(-20).map(t => {
+                const time = new Date(t.timestamp);
+                return time.toLocaleTimeString();
+            });
+            
+            const connectionData = data.network_traffic.slice(-20).map(t => t.connections?.total || 0);
+            
+            charts.network.data.labels = labels;
+            charts.network.data.datasets[0].data = connectionData;
+            charts.network.update();
+        }
+        
+        // Update connections chart
+        function updateConnectionsChart(data) {
+            if (!data.network_traffic || data.network_traffic.length === 0) return;
+            
+            const latest = data.network_traffic[data.network_traffic.length - 1];
+            const connections = latest.connections?.by_status || {};
+            
+            charts.connections.data.datasets[0].data = [
+                connections.established || 0,
+                connections.listening || 0,
+                connections.time_wait || 0,
+                connections.other || 0
+            ];
+            charts.connections.update();
+        }
+        
+        // Update disk chart
+        function updateDiskChart(data) {
+            if (!data.system_metrics || data.system_metrics.length === 0) return;
+            
+            const latest = data.system_metrics[data.system_metrics.length - 1];
+            const used = latest.disk?.usage_percent || 0;
+            const free = 100 - used;
+            
+            charts.disk.data.datasets[0].data = [used, free];
+            charts.disk.update();
+        }
+        
+        // Update alerts list
+        function updateAlertsList(data) {
+            const container = document.getElementById('recent-alerts');
+            if (!container || !data.threat_alerts) return;
+            
+            const alerts = data.threat_alerts.slice(-5).reverse();
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No active alerts</p>';
+                return;
+            }
+            
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert-card ${alert.severity}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">
+                                <i class="fas fa-${alert.icon} me-2"></i>
+                                ${alert.description}
+                            </h6>
+                            <small class="text-muted">
+                                Source: ${alert.source} | ${new Date(alert.timestamp).toLocaleString()}
+                            </small>
+                        </div>
+                        <span class="status-badge status-${alert.severity}">${alert.severity}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Update processes list
+        function updateProcessesList(data) {
+            const container = document.getElementById('processes-list');
+            if (!container || !data.system_metrics || data.system_metrics.length === 0) return;
+            
+            const latest = data.system_metrics[data.system_metrics.length - 1];
+            const processes = latest.processes?.top_by_memory || [];
+            
+            if (processes.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No process data available</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Process</th>
+                                <th>PID</th>
+                                <th>Memory Usage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${processes.map(proc => `
+                                <tr>
+                                    <td>${proc.name}</td>
+                                    <td>${proc.pid}</td>
+                                    <td>${proc.memory_percent.toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // Update interfaces list
+        function updateInterfacesList(data) {
+            const container = document.getElementById('interfaces-list');
+            if (!container || !data.network_traffic || data.network_traffic.length === 0) return;
+            
+            const latest = data.network_traffic[data.network_traffic.length - 1];
+            const interfaces = latest.interfaces || [];
+            
+            if (interfaces.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No network interfaces available</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Interface</th>
+                                <th>IP Addresses</th>
+                                <th>Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${interfaces.map(iface => `
+                                <tr>
+                                    <td>${iface.name}</td>
+                                    <td>${iface.ip_addresses.join(', ')}</td>
+                                    <td>${iface.speed_mbps}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // Update logs list
+        function updateLogsList(data) {
+            const container = document.getElementById('logs-list');
+            if (!container || !data.security_events) return;
+            
+            const events = data.security_events.slice(-10).reverse();
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No security events available</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Level</th>
+                                <th>Source</th>
+                                <th>Message</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${events.map(event => `
+                                <tr>
+                                    <td>${new Date(event.timestamp).toLocaleString()}</td>
+                                    <td><span class="badge bg-${getSeverityColor(event.severity)}">${event.level}</span></td>
+                                    <td>${event.source}</td>
+                                    <td>${event.message}</td>
+                                    <td><span class="badge bg-${getSeverityColor(event.severity)}">${event.severity}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // Update threats list
+        function updateThreatsList(data) {
+            if (!data.threat_alerts) return;
+            
+            // Update threat summary metrics
+            const totalThreats = data.threat_alerts.length;
+            const activeThreats = data.threat_alerts.filter(alert => alert.status === 'active').length;
+            const resolvedThreats = data.threat_alerts.filter(alert => alert.status === 'resolved').length;
+            const escalatedThreats = data.threat_alerts.filter(alert => alert.status === 'escalated').length;
+            
+            updateMetric('total-threats', totalThreats);
+            updateMetric('active-threats-count', activeThreats);
+            updateMetric('resolved-threats', resolvedThreats);
+            updateMetric('escalated-threats', escalatedThreats);
+            
+            // Update all threats list
+            updateThreatsTab('all-threats-list', data.threat_alerts, 'all');
+            
+            // Update active threats list
+            const activeAlerts = data.threat_alerts.filter(alert => alert.status === 'active');
+            updateThreatsTab('active-threats-list', activeAlerts, 'active');
+            
+            // Update resolved threats list
+            const resolvedAlerts = data.threat_alerts.filter(alert => alert.status === 'resolved');
+            updateThreatsTab('resolved-threats-list', resolvedAlerts, 'resolved');
+        }
+        
+        // Update individual threat tab
+        function updateThreatsTab(containerId, threats, type) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (threats.length === 0) {
+                const message = type === 'all' ? 'No threats detected yet' : 
+                              type === 'active' ? 'No active threats' : 'No resolved threats';
+                container.innerHTML = `<p class="text-muted text-center">${message}</p>`;
+                return;
+            }
+            
+            // Sort threats by timestamp (newest first)
+            const sortedThreats = threats.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            container.innerHTML = sortedThreats.map(alert => `
+                <div class="alert-card ${alert.severity} mb-3">
+                    <div class="threat-card-content">
+                        <div class="threat-main-content">
+                            <div class="threat-header">
+                                <h6 class="threat-title">
+                                    <i class="fas fa-${getThreatIcon(alert.type)} me-2"></i>
+                                    ${alert.description}
+                                </h6>
+                                <div class="threat-badges">
+                                    <span class="status-badge status-${alert.severity}">${alert.severity}</span>
+                                    <span class="badge bg-${getStatusColor(alert.status)}">${alert.status}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="threat-info-grid">
+                                <div class="threat-info-item">
+                                    <strong>Source:</strong> ${alert.source}
+                                </div>
+                                <div class="threat-info-item">
+                                    <strong>Type:</strong> ${alert.type}
+                                </div>
+                                <div class="threat-info-item">
+                                    <strong>Detected:</strong> ${new Date(alert.timestamp).toLocaleString()}
+                                </div>
+                                <div class="threat-info-item">
+                                    <strong>ID:</strong> ${alert.id}
+                                </div>
+                            </div>
+                            
+                            <!-- Additional threat information -->
+                            ${alert.details ? `
+                                <div class="threat-details">
+                                    <strong>Technical Details:</strong><br>
+                                    <code>${JSON.stringify(alert.details, null, 2)}</code>
+                                </div>
+                            ` : ''}
+                            
+                            ${alert.notes ? `
+                                <div class="threat-details mt-2">
+                                    <strong>Notes:</strong><br>
+                                    <span>${alert.notes}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="threat-sidebar">
+                            <div class="threat-actions">
+                                ${alert.status === 'active' ? `
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="acknowledgeThreat('${alert.id}')">
+                                        <i class="fas fa-eye me-1"></i>Acknowledge
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="resolveThreat('${alert.id}')">
+                                        <i class="fas fa-check me-1"></i>Resolve
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="escalateThreat('${alert.id}')">
+                                        <i class="fas fa-arrow-up me-1"></i>Escalate
+                                    </button>
+                                ` : ''}
+                                
+                                ${alert.status === 'acknowledged' ? `
+                                    <button class="btn btn-sm btn-outline-success" onclick="resolveThreat('${alert.id}')">
+                                        <i class="fas fa-check me-1"></i>Resolve
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="escalateThreat('${alert.id}')">
+                                        <i class="fas fa-arrow-up me-1"></i>Escalate
+                                    </button>
+                                ` : ''}
+                                
+                                ${alert.status === 'resolved' ? `
+                                    <div class="threat-status-display text-success">
+                                        <i class="fas fa-check-circle"></i><br>
+                                        <small>Resolved</small>
+                                    </div>
+                                ` : ''}
+                                
+                                ${alert.status === 'escalated' ? `
+                                    <div class="threat-status-display text-danger">
+                                        <i class="fas fa-exclamation-triangle"></i><br>
+                                        <small>Escalated</small>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Get threat icon based on type
+        function getThreatIcon(type) {
+            const icons = {
+                'brute_force': 'user-shield',
+                'resource_abuse': 'server',
+                'network_anomaly': 'network-wired',
+                'suspicious_process': 'exclamation-triangle',
+                'default': 'exclamation-triangle'
+            };
+            return icons[type] || icons.default;
+        }
+        
+        // Get status color
+        function getStatusColor(status) {
+            const colors = {
+                'active': 'danger',
+                'acknowledged': 'warning',
+                'resolved': 'success',
+                'escalated': 'danger',
+                'default': 'secondary'
+            };
+            return colors[status] || colors.default;
+        }
+        
+        // Threat action functions
+        async function acknowledgeThreat(threatId) {
+            try {
+                const response = await fetch(`/api/threats/${threatId}/acknowledge`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Threat acknowledged:', threatId);
+                    // The dashboard will update automatically via socket.io
+                } else {
+                    console.error('Failed to acknowledge threat:', result.message);
+                }
+            } catch (error) {
+                console.error('Error acknowledging threat:', error);
+            }
+        }
+        
+        async function resolveThreat(threatId) {
+            try {
+                const response = await fetch(`/api/threats/${threatId}/resolve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Threat resolved:', threatId);
+                    // The dashboard will update automatically via socket.io
+                } else {
+                    console.error('Failed to resolve threat:', result.message);
+                }
+            } catch (error) {
+                console.error('Error resolving threat:', error);
+            }
+        }
+        
+        async function escalateThreat(threatId) {
+            try {
+                const response = await fetch(`/api/threats/${threatId}/escalate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Threat escalated:', threatId);
+                    // The dashboard will update automatically via socket.io
+                } else {
+                    console.error('Failed to escalate threat:', result.message);
+                }
+            } catch (error) {
+                console.error('Error escalating threat:', error);
+            }
+        }
+        
+        // Get severity color
+        function getSeverityColor(severity) {
+            switch (severity) {
+                case 'low': return 'success';
+                case 'medium': return 'warning';
+                case 'high': return 'danger';
+                case 'critical': return 'danger';
+                default: return 'secondary';
+            }
+        }
+        
+        // Show new alert
+        function showNewAlert(alert) {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = 'toast show position-fixed';
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                <div class="toast-header bg-${getSeverityColor(alert.severity)} text-white">
+                    <i class="fas fa-${alert.icon} me-2"></i>
+                    <strong class="me-auto">Security Alert</strong>
+                    <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+                <div class="toast-body">
+                    <h6>${alert.description}</h6>
+                    <small>Source: ${alert.source}</small>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Remove toast after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 5000);
+        }
+        
+        // Navigation functions
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').style.display = 'block';
+            
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            // You can add a clock display here if needed
+        }
+
+        // Initialize threat search and filter functionality
+        function initializeThreatFilters() {
+            const searchInput = document.getElementById('threatSearch');
+            const severityFilter = document.getElementById('severityFilter');
+            const typeFilter = document.getElementById('typeFilter');
+            
+            if (searchInput) {
+                searchInput.addEventListener('input', filterThreats);
+            }
+            if (severityFilter) {
+                severityFilter.addEventListener('change', filterThreats);
+            }
+            if (typeFilter) {
+                typeFilter.addEventListener('change', filterThreats);
+            }
+        }
+        
+        // Filter threats based on search and filter criteria
+        function filterThreats() {
+            const searchTerm = document.getElementById('threatSearch')?.value.toLowerCase() || '';
+            const severityFilter = document.getElementById('severityFilter')?.value || '';
+            const typeFilter = document.getElementById('typeFilter')?.value || '';
+            
+            if (!currentData.threat_alerts) return;
+            
+            let filteredThreats = currentData.threat_alerts.filter(alert => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    alert.description.toLowerCase().includes(searchTerm) ||
+                    alert.source.toLowerCase().includes(searchTerm) ||
+                    alert.type.toLowerCase().includes(searchTerm);
+                
+                // Severity filter
+                const matchesSeverity = !severityFilter || alert.severity === severityFilter;
+                
+                // Type filter
+                const matchesType = !typeFilter || alert.type === typeFilter;
+                
+                return matchesSearch && matchesSeverity && matchesType;
+            });
+            
+            // Update all tabs with filtered results
+            updateThreatsTab('all-threats-list', filteredThreats, 'all');
+            
+            const activeAlerts = filteredThreats.filter(alert => alert.status === 'active');
+            updateThreatsTab('active-threats-list', activeAlerts, 'active');
+            
+            const resolvedAlerts = filteredThreats.filter(alert => alert.status === 'resolved');
+            updateThreatsTab('resolved-threats-list', resolvedAlerts, 'resolved');
+            
+            // Update summary metrics with filtered counts
+            updateThreatSummaryMetrics(filteredThreats);
+        }
+        
+        // Update threat summary metrics with filtered data
+        function updateThreatSummaryMetrics(threats) {
+            const totalThreats = threats.length;
+            const activeThreats = threats.filter(alert => alert.status === 'active').length;
+            const resolvedThreats = threats.filter(alert => alert.status === 'resolved').length;
+            const escalatedThreats = threats.filter(alert => alert.status === 'escalated').length;
+            
+            updateMetric('total-threats', totalThreats);
+            updateMetric('active-threats-count', activeThreats);
+            updateMetric('resolved-threats', resolvedThreats);
+            updateMetric('escalated-threats', escalatedThreats);
+        }
+    </script>
+</body>
+</html>
